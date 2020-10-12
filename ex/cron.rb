@@ -5,20 +5,24 @@ module Cron
   class HTTPJob < Job; end
   class ScriptJob < Job; end
   
-  multi :run, HTTPJob do
-    puts "Run #{self} via http"
-  end
-  
-  multi :run, ScriptJob do
-    puts "Run #{self} via script interface"
-  end
-  
-  mutli :run, Job do
-    puts "Run #{self} via shell"
+  generic :run do |type, *args|
+    [type.class, args]
   end
 
-  multi :run, Any do
-    puts "Log error #{self} is not a valid Job type"
+  multi :run, HTTPJob do |job|
+    puts "Run #{job} via http"
+  end
+  
+  multi :run, ScriptJob do |job|
+    puts "Run #{job} via script interface"
+  end
+  
+  mutli :run, Job do |job|
+    puts "Run #{job} via shell"
+  end
+
+  multi :run, Any do |obj|
+    puts "Log error #{obj} is not a valid Job type"
   end
 
   module_function :run
