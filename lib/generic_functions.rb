@@ -12,16 +12,18 @@ module GenericFunctions
     end
   
     def add_method(arguments, body)
-      @methods[arguments.values] = Method.new(arguments.keys, body)
-  
+      meth = :"_method_#{arguments.hash}"
+      define_singleton_method(meth, &body)
+      @methods[meth] = arguments
+
       self
     end
   
     def call(*args)
-      method = @methods[@dispacher.call(*args)]
-      raise ArgumentError, "wrong arguments (given #{fmt_args(args)}, expected #{arglists})" if method.nil?
+      meth = :"_method_#{@dispacher.call(*args).hash}"
+      raise ArgumentError, "wrong arguments (given #{fmt_args(args)}, expected #{arglists})" unless respond_to?(meth)
   
-      method.call(*args)
+      send(meth, *args)
     end
   
     private
@@ -31,28 +33,7 @@ module GenericFunctions
     end
   
     def arglists
-      @methods.keys.map(&:inspect).join(', ')
-    end
-  
-    class Method
-      def initialize(names, body)
-        names.each do |name|
-          define_singleton_method name do
-            instance_variable_get(:"@#{name}")
-          end
-        end
-  
-        @names = names
-        @body  = body
-      end
-  
-      def call(*args)
-        @names.each_with_index do |name, i|
-          instance_variable_set(:"@#{name}", args[i])
-        end
-  
-        instance_exec(&@body)
-      end
+      @methods.values.map(&:inspect).join(', ')
     end
   end
 
@@ -67,9 +48,9 @@ module GenericFunctions
   def define_generic_dispatch(name, &block)
     generic_function_lookup[name] ||= GenericFunction.new(block)
   end
-  alias multi define_generic_dispatch
+  alias generic define_generic_dispatch
 
-  def define_generic_method(name, arguments, &block)
+  def define_generic_method(name, *arguments, &block)
     generic_function_lookup[name] ||= GenericFunction.new
     generic_function_lookup[name].add_method(arguments, block)
 
@@ -77,7 +58,7 @@ module GenericFunctions
       generic_function_lookup.fetch(name).call(*args)
     end
   end
-  alias generic define_generic_method
+  alias multi define_generic_method
 
   private
 
@@ -88,32 +69,18 @@ end
 
 include GenericFunctions
 
-def coerce(fn)
-  return fn         if fn.respond_to?(:call)
-  return fn.to_proc if fn.respond_to?(:to_proc)
+class Person; end
+class Jackie; end
+class Delon; end
 
-  raise "Don't know how to coerce #{fn.inspect} into a proc"
+multi :love, Delon, Jackie do |a, b|
+  puts "#{a} loves #{b}"
 end
 
-generic :reduce, fn: Symbol, col: Array do
-  reduce(fn).call(col)
+multi :love, Delon, Person do |a, b|
+  puts "#{a} loves Jackie, not sure about #{b}"
 end
 
-generic :reduce, fn: Symbol do
-  lambda do |col|
-    fn   = fn.to_proc
-    memo = col[0]
-    col = col.drop(1)
-  
-    col.each do |x|
-      memo = fn.call(memo, x)
-    end
-  
-    memo
-  end
+multi :love, Jackie, Person do |a, b|
+  puts "#{a} loves Delon, not sure about #{b}"
 end
-
-#pp generic_function(:reduce)
-pp generic_functions
-
-pp reduce(:+, Array(1..20))
