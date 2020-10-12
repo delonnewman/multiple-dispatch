@@ -25,17 +25,28 @@ module GenericFunctions
   
       send(meth, *args)
     end
+
+    def to_s
+      "#<#{self.class} #{arglists}>"
+    end
+    alias inspect to_s
   
     private
   
     def fmt_args(args)
-      args.map { |x| "#{x.inspect}:#{x.class}" }.join(', ')
+      if args.empty?
+        'no arguments'
+      else
+        args.map { |x| "#{x.inspect}:#{x.class}" }.join(', ')
+      end
     end
   
     def arglists
       @methods.values.map(&:inspect).join(', ')
     end
   end
+
+  Any = BasicObject
 
   def generic_functions
     generic_function_lookup.keys
@@ -66,21 +77,3 @@ module GenericFunctions
     @generic_functions ||= {}
   end
 end
-
-# include GenericFunctions
-
-# class Person; end
-# class Jackie; end
-# class Delon; end
-
-# multi :love, Delon, Jackie do |a, b|
-#   puts "#{a} loves #{b}"
-# end
-
-# multi :love, Delon, Person do |a, b|
-#   puts "#{a} loves Jackie, not sure about #{b}"
-# end
-
-# multi :love, Jackie, Person do |a, b|
-#   puts "#{a} loves Delon, not sure about #{b}"
-# end
