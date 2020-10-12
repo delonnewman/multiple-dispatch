@@ -58,16 +58,23 @@ module GenericFunctions
 
   def define_generic_dispatch(name, &block)
     generic_function_lookup[name] ||= GenericFunction.new(block)
-  end
-  alias generic define_generic_dispatch
-
-  def define_generic_method(name, *arguments, &block)
-    generic_function_lookup[name] ||= GenericFunction.new
-    generic_function_lookup[name].add_method(arguments, block)
 
     define_method name do |*args|
       generic_function_lookup.fetch(name).call(*args)
     end
+
+    name
+  end
+  alias generic define_generic_dispatch
+
+  def define_generic_method(name, *arguments, &block)
+    unless generic_function_lookup[name]
+      define_generic_dispatch(name, &GenericFunction::DEFAULT_DISPATCH)
+    end
+
+    generic_function_lookup[name].add_method(arguments, block)
+
+    name
   end
   alias multi define_generic_method
 
