@@ -3,46 +3,55 @@ require_relative 'generic_functions/version'
 module GenericFunctions
   class GenericFunction
     DEFAULT_DISPATCH = lambda do |*args|
-      args.map(&:class)
+      args.map(&:class).hash
     end
+
+    attr_reader :dispatcher
   
-    def initialize(dispacher = DEFAULT_DISPATCH)
-      @methods   = {}
-      @dispacher = dispacher
+    def initialize(dispatcher = DEFAULT_DISPATCH)
+      @dispatcher = dispatcher
     end
   
     def add_method(arguments, body)
-      meth = :"_method_#{arguments.hash}"
+      meth = :"_method_#{arguments}"
       define_singleton_method(meth, &body)
-      @methods[meth] = arguments
+      method_lookup[meth] = arguments
 
       self
     end
   
     def call(*args)
-      meth = :"_method_#{@dispacher.call(*args).hash}"
-      raise ArgumentError, "wrong arguments (given #{fmt_args(args)}, expected #{arglists})" unless respond_to?(meth)
+      meth = :"_method_#{dispatcher.call(*args)}"
+      raise ArgumentError, "wrong arguments, given #{fmt_args(args)}, expected #{fmt_arglists}" unless respond_to?(meth)
   
       send(meth, *args)
     end
 
     def to_s
-      "#<#{self.class} #{arglists}>"
+      "#<#{self.class} #{fmt_arglists}>"
     end
     alias inspect to_s
   
     private
+
+    def fmt_arglists
+      method_lookup.values.map(&method(:fmt_args)).join(', ')
+    end
   
     def fmt_args(args)
       if args.empty?
         'no arguments'
       else
-        args.map { |x| "#{x.inspect}:#{x.class}" }.join(', ')
+        "(#{args.map { |x| "#{x.inspect}:#{x.class}" }.join(', ')})"
       end
     end
   
     def arglists
-      @methods.values.map(&:inspect).join(', ')
+      method_lookup.values.map(&:inspect).join(', ')
+    end
+
+    def method_lookup
+      @method_lookup ||= {}
     end
   end
 
@@ -60,7 +69,7 @@ module GenericFunctions
     generic_function_lookup[name] ||= GenericFunction.new(block)
 
     define_method name do |*args|
-      generic_function_lookup.fetch(name).call(*args)
+      self.class.generic_function_lookup.fetch(name).call(*args)
     end
 
     name
@@ -78,9 +87,7 @@ module GenericFunctions
   end
   alias multi define_generic_method
 
-  private
-
   def generic_function_lookup
-    @generic_functions ||= {}
+    @@generic_functions ||= {}
   end
 end
