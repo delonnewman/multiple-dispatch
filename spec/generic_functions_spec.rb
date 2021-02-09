@@ -1,9 +1,39 @@
 RSpec.describe GenericFunctions do
-  class Identity
+  module Cron
     extend GenericFunctions
+  
+    class Job; end
+    class HTTPJob < Job; end
+    class ScriptJob < Job; end
+    
+    multi :run, HTTPJob do |job|
+      "Run #{job} via http"
+    end
+    
+    multi :run, ScriptJob do |job|
+      "Run #{job} via script interface"
+    end
+    
+    multi :run, Job do |job|
+      "Run #{job} via shell"
+    end
+  
+    module_function :run
+  end
+
+  it 'should dispatch by class by default' do
+    expect(Cron.run Cron::Job.new).to match(/shell/)
+    expect(Cron.run Cron::HTTPJob.new).to match(/http/)
+    expect(Cron.run Cron::ScriptJob.new).to match(/script/)
+
+    expect { Cron.run Object.new }.to raise_error(ArgumentError)
+  end
+
+  class Identity
+    include GenericFunctions
 
     generic :call do |x|
-      [x]
+      x
     end
 
     multi :call, 1 do |x|
@@ -15,34 +45,9 @@ RSpec.describe GenericFunctions do
     end
   end
 
-  it 'should dispatch by the identity argument' do
+  it 'should dispatch by what ever value is returned by the dispatcher' do
     ident = Identity.new
     expect(ident.(1)).to eq "One"
     expect(ident.("One")).to eq 1
-  end
-
-  class Router
-    extend GenericFunctions
-
-    generic :get do |route|
-      [route]
-    end
-  end
-
-  class Routes < Router
-    multi :get, '/' do |x|
-      "List"
-    end
-
-    multi :get, '/:id' do |x|
-      "Item"
-    end
-  end
-
-  it 'should match the route' do
-    r = Routes.new
-
-    expect(r.get('/')).to eq "List"
-    expect(r.get('/:id')).to eq "Item"
   end
 end

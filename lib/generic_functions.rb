@@ -3,7 +3,11 @@ require_relative 'generic_functions/version'
 module GenericFunctions
   class GenericFunction
     DEFAULT_DISPATCH = lambda do |*args|
-      args.map(&:class).hash
+      if args.size == 1
+        args.first.class
+      else
+        args.map(&:class)
+      end
     end
 
     attr_reader :dispatcher
@@ -13,18 +17,20 @@ module GenericFunctions
     end
   
     def add_method(arguments, body)
-      meth = :"_method_#{arguments}"
-      define_singleton_method(meth, &body)
-      method_lookup[meth] = arguments
+      if arguments.size == 1
+        method_lookup[arguments[0]] = body
+      else
+        method_lookup[arguments] = body
+      end
 
       self
     end
   
     def call(*args)
-      meth = :"_method_#{dispatcher.call(*args)}"
-      raise ArgumentError, "wrong arguments, given #{fmt_args(args)}, expected #{fmt_arglists}" unless respond_to?(meth)
+      method = method_lookup[dispatcher.call(*args)]
+      raise ArgumentError, "wrong arguments, given #{fmt_args(args)}, expected #{fmt_arglists}" if method.nil?
   
-      send(meth, *args)
+      method.call(*args)
     end
 
     def to_s
@@ -35,11 +41,13 @@ module GenericFunctions
     private
 
     def fmt_arglists
-      method_lookup.values.map(&method(:fmt_args)).join(', ')
+      method_lookup.keys.map(&method(:fmt_args)).join(', ')
     end
   
     def fmt_args(args)
-      if args.empty?
+      if not Array === args
+        "(#{args.inspect}:#{args.class})"
+      elsif args.empty?
         'no arguments'
       else
         "(#{args.map { |x| "#{x.inspect}:#{x.class}" }.join(', ')})"
@@ -57,37 +65,54 @@ module GenericFunctions
 
   Any = BasicObject
 
-  def generic_functions
-    generic_function_lookup.keys
+  def self.included(base)
+    base.include(InstanceMethods)
+    base.extend(ClassMethods)
   end
 
-  def generic_function(name)
-    generic_function_lookup[name]
+  def self.extended(base)
+    base.extend(ClassMethods)
   end
 
-  def define_generic_dispatch(name, &block)
-    generic_function_lookup[name] ||= GenericFunction.new(block)
-
-    define_method name do |*args|
-      self.class.generic_function_lookup.fetch(name).call(*args)
+  module InstanceMethods
+    def generic_function_lookup
+      self.class.generic_function_lookup
     end
-
-    name
   end
-  alias generic define_generic_dispatch
 
-  def define_generic_method(name, *arguments, &block)
-    unless generic_function_lookup[name]
-      define_generic_dispatch(name, &GenericFunction::DEFAULT_DISPATCH)
+  module ClassMethods
+    def generic_functions
+      generic_function_lookup.keys
     end
-
-    generic_function_lookup[name].add_method(arguments, block)
-
-    name
-  end
-  alias multi define_generic_method
-
-  def generic_function_lookup
-    @@generic_functions ||= {}
+  
+    def generic_function(name)
+      generic_function_lookup[name]
+    end
+  
+    def define_generic_dispatch(name, &block)
+      generic_function_lookup[name] ||= GenericFunction.new(block)
+  
+      define_method name do |*args|
+        generic_function_lookup.fetch(name).call(*args)
+      end
+  
+      name
+    end
+    alias generic define_generic_dispatch
+  
+    def define_generic_method(name, *arguments, &block)
+      unless generic_function_lookup[name]
+        define_generic_dispatch(name, &GenericFunction::DEFAULT_DISPATCH)
+      end
+  
+      generic_function_lookup[name].add_method(arguments, block)
+  
+      name
+    end
+    alias multi define_generic_method
+  
+    def generic_function_lookup
+      @@generic_functions ||= {}
+    end
   end
 end
