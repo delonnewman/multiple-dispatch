@@ -29,25 +29,22 @@ RSpec.describe GenericFunctions do
     expect { Cron.run Object.new }.to raise_error(ArgumentError)
   end
 
-  class Identity
-    include GenericFunctions
-
-    generic :call do |x|
-      x
-    end
-
-    multi :call, 1 do |x|
-      "One"
-    end
-
-    multi :call, "One" do |x|
-      1
-    end
-  end
-
-  it 'should dispatch by what ever value is returned by the dispatcher' do
-    ident = Identity.new
-    expect(ident.(1)).to eq "One"
-    expect(ident.("One")).to eq 1
-  end
+#  module Requests
+#    extend GenericFunctions
+#
+#    module_function
+#
+#    generic :submit do |request|
+#      request[:tag]
+#    end
+#
+#    multi :submit, :wfh do |request|
+#      raise "A comment is required" unless request[:comment]
+#      request.merge(status: :submitted, submitted_at: Time.now)
+#    end
+#
+#    multi :submit, Any do |request|
+#      request.merge(status: :submitted, submitted_at: Time.now)
+#    end
+#  end
 end

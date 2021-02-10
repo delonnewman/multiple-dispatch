@@ -2,6 +2,8 @@ require_relative 'generic_functions/version'
 
 module GenericFunctions
   class GenericFunction
+    Any = BasicObject.new 
+
     DEFAULT_DISPATCH = lambda do |*args|
       if args.size == 1
         args.first.class
@@ -10,26 +12,46 @@ module GenericFunctions
       end
     end
 
-    attr_reader :dispatcher
-  
     def initialize(dispatcher = DEFAULT_DISPATCH)
       @dispatcher = dispatcher
     end
+
+    def arity
+      @dispatcher.arity
+    end
   
     def add_method(arguments, body)
+      raise ArgumentError, "Methods must have the same amout of arguments as the dispatching function" if arity > 0 && arguments.size != arity
+
       if arguments.size == 1
         method_lookup[arguments[0]] = body
       else
-        method_lookup[arguments] = body
+        scope = method_lookup
+        arguments.each_with_index do |arg, i|
+          unless i == arguments.size - 1
+            scope[arg] = {} unless scope.key?(arg)
+            scope = scope[arg]
+          end
+        end
+        scope[arguments.last] = body
       end
 
       self
     end
   
     def call(*args)
-      method = method_lookup[dispatcher.call(*args)]
-      raise ArgumentError, "wrong arguments, given #{fmt_args(args)}, expected #{fmt_arglists}" if method.nil?
-  
+      value = @dispatcher.call(*args)
+      if arity == 1 || (!value.respond_to?(:each) && arity < 0)
+        method = method_lookup[value]
+        raise ArgumentError, "wrong arguments, given #{fmt_args(args)}, expected #{fmt_arglists}" if method.nil?
+      else
+        raise "Dispatching function should return the same number of values as it takes arguments" if arity > 0 && value.size != args.size
+        method = method_lookup
+        value.each do |value|
+          method = method[value]
+          raise ArgumentError, "wrong arguments, given #{fmt_args(args)}, expected #{fmt_arglists}" if method.nil?
+        end
+      end
       method.call(*args)
     end
 
@@ -62,8 +84,6 @@ module GenericFunctions
       @method_lookup ||= {}
     end
   end
-
-  Any = BasicObject
 
   def self.included(base)
     base.include(InstanceMethods)
