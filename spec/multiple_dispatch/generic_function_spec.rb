@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-RSpec.describe GenericFunctions::GenericFunction do
+RSpec.describe MultipleDispatch::GenericFunction do
   it 'should dispatch on multiple arguments' do
     function = described_class.new
     function.add_method([String, Integer], ->(str, count) { str * 3 })

@@ -1,6 +1,6 @@
-RSpec.describe GenericFunctions do
+RSpec.describe MultipleDispatch do
   module Cron
-    extend GenericFunctions
+    extend MultipleDispatch
   
     class Job; end
     class HTTPJob < Job; end

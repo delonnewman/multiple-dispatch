@@ -1,6 +1,8 @@
-require_relative 'generic_functions/version'
+# frozen_string_literal: true
 
-module GenericFunctions
+module MultipleDispatch
+  require_relative 'multiple_dispatch/version'
+
   class GenericFunction
     Any = BasicObject.new 
 
