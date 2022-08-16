@@ -29,5 +29,5 @@ end
 
 class Routes < Router
   multi :get, '/', &List
-  multi :get, '/:id', &Item
+  multi :get, '/', Integer, &Item
 end
