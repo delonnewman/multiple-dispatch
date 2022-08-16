@@ -1,5 +1,5 @@
 class Router
-  extend GenericFunctions
+  extend MultipleDispatch
 end
 
 class Action
