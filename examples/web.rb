@@ -1,9 +1,5 @@
 class Router
   extend GenericFunctions
-
-  generic :get do |route|
-    [route]
-  end
 end
 
 class Action
